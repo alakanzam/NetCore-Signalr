@@ -4,16 +4,22 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Internal;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SignalrCore.Authentications.JwtValidator;
+using SignalrCore.Authentications.Requirements;
+using SignalrCore.Constants;
 using SignalrCore.Hubs;
+using SignalrCore.Interfaces;
 using SignalrCore.Interfaces.Repositories;
 using SignalrCore.Models;
 using SignalrCore.Repositories;
+using SignalrCore.Services;
 
 namespace SignalrCore
 {
@@ -33,6 +39,9 @@ namespace SignalrCore
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<IUserRepository, UserRepository>();
+            services.AddSingleton<ITimeService, TimeService>();
+            services.AddSingleton<IConnectionCacheService, ConnectionCacheService>();
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             services.AddSignalR();
 
             // Build a service provider.
@@ -53,6 +62,15 @@ namespace SignalrCore
 
             // This can be removed after https://github.com/aspnet/IISIntegration/issues/371
             var authenticationBuilder = services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme);
+
+            // Initialize signalr policy.
+            //var signalrConnectionPolicy  = 
+            services.AddAuthorization(x => x.AddPolicy(PolicyConstant.DefaultSignalRPolicyName, builder =>
+            {
+                builder.RequireAuthenticatedUser()
+                    .AddRequirements(new SolidAccountRequirement());
+            }));
+
 
             authenticationBuilder.AddJwtBearer(o =>
             {
